@@ -1,4 +1,4 @@
 # Marketplace-for-Overstock-Produce
 
 
-Link to MVP UX: https://www.figma.com/file/BvfSKWOJ0VJzfBuMCyNR6x/Frugal-Pantry-MVP?node-id=0%3A1
+Link to MVP UX: https://www.figma.com/file/saA0TRQmdMtubDmSYxBPTN/Big-Picture?node-id=97%3A0
