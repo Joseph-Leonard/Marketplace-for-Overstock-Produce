@@ -1,0 +1,100 @@
+
+import * as bignumber from 'bignumber.js';
+import { role, accountId, choiceId, token, ada, valueId, availableMoney, constant, 
+         negValue, addValue, subValue, mulValue, scale, choiceValue, slotIntervalStart, 
+         slotIntervalEnd, useValue, cond, andObs, orObs, notObs, choseSomething, valueGE, 
+         valueGT, valueLT, valueLE, valueEQ, trueObs, falseObs, bound, deposit, choice, 
+         notify, caseM, closeM, payM, ifM, whenM, letM, assertM, Party, SomeNumber,
+         AccountId, ChoiceId, Token, ValueId, Value, EValue, Observation, Bound, Action,
+         Payee, Case, Contract } from 'marlowe-js';
+
+/* === Code above this comment will be removed at compile time === */
+
+/* Parties */
+const alice : Party = role("alice");
+const bob : Party = role("bob");
+const carol : Party = role("carol");
+
+/* Accounts */
+const alicesAccount : AccountId = accountId(0, alice);
+
+/* Value under escrow */
+const price : SomeNumber = new bignumber.BigNumber(450);
+
+/* helper function to build Actions */
+
+const choiceName : string = "choice";
+
+const choiceIdBy = function (party : Party) : ChoiceId {
+                       return choiceId(choiceName, party);
+                   }
+
+const choiceBy = function(party : Party, bounds : [Bound]) : Action {
+                      return choice(choiceIdBy(party), bounds);
+                  };
+
+
+const choiceValueBy = function(party : Party) : Value {
+                          return choiceValue(choiceIdBy(party));
+                      };
+
+/* Names for choices */
+
+const pay : [Bound]    = [bound(0, 0)];
+const refund : [Bound] = [bound(1, 1)];
+const both : [Bound]   = [bound(0, 1)];
+
+/* Name choices according to person making choice and choice made */
+
+const alicePay : Action    = choiceBy(alice, pay);
+const aliceRefund : Action = choiceBy(alice, refund);
+const aliceChoice : Action = choiceBy(alice, both);
+
+const bobPay : Action    = choiceBy(bob, pay);
+const bobRefund : Action = choiceBy(bob, refund);
+const bobChoice : Action = choiceBy(bob, both);
+
+const carolPay : Action    = choiceBy(carol, pay);
+const carolRefund : Action = choiceBy(carol, refund);
+const carolChoice : Action = choiceBy(carol, both);
+
+/* the values chosen in choices */
+
+const aliceChosen : Value = choiceValueBy(alice);
+const bobChosen : Value = choiceValueBy(bob);
+
+/* The contract to follow when Alice and Bob disagree, or if
+   Carol has to intervene after a single choice from Alice or Bob. */
+
+const arbitrate : Contract = whenM([caseM(carolRefund, closeM),
+                                    caseM(carolPay, payM(alicesAccount, bob, ada, price, closeM))],
+                                   100, closeM);
+
+/* The contract to follow when Alice and Bob have made the same choice. */
+
+const agreement : Contract = ifM(valueEQ(aliceChosen, 0),
+                                 payM(alicesAccount, bob, ada, price, closeM),
+                                 closeM);
+
+/* Inner part of contract */
+
+const inner : Contract = whenM([caseM(aliceChoice,
+                           whenM([caseM(bobChoice,
+                                        ifM(valueEQ(aliceChosen, bobChosen),
+                                          agreement,
+                                          arbitrate))],
+                                 60, arbitrate))],
+                           40, closeM);
+
+/* What does the vanilla contract look like?
+  - if Alice and Bob choose
+      - and agree: do it
+      - and disagree: Carol decides
+  - Carol also decides if timeout after one choice has been made;
+  - refund if no choices are made. */
+
+const contract : Contract = whenM([caseM(deposit(alicesAccount, alice, ada, price), inner)],
+                                  10,
+                                  closeM)
+
+contract
